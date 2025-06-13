@@ -18,7 +18,9 @@ import OpportunitySearchScreen from './components/pages/Opportunities/Opportunit
 import RegistrationScreen from './components/pages/Register';
 import RoleSelectionScreen from './components/pages/RoleSelectionScreen';
 import AccountVerificationScreen from './components/pages/settings/AccountVerificationScreen';
+import NotificationScreen from './components/pages/settings/NotificationScreen';
 import SplashScreen from './components/pages/SplashScreen';
+
 import UpdateProfileScreen from './components/pages/UpdateProfileScreen';
 import PostJobs from './components/Recruiter/PostJobs';
 import RecruiterHomePage from './components/Recruiter/RecruiterHomePage';
@@ -45,6 +47,9 @@ export default function App() {
         <Stack.Screen name="PostJobs" component={PostJobs} />
         <Stack.Screen name="Search" component={OpportunitySearchScreen} />
         <Stack.Screen name="AccountSettings" component={AccountVerificationScreen} />
+        <Stack.Screen name="Notifications" component={NotificationScreen} />
+
+        {/* Admin */}
         <Stack.Screen name="Dashboard" component={DashboardScreen} />
         <Stack.Screen name="Edit Basic Details" component={EditBasicDetailsScreen} />
         <Stack.Screen name="Edit Education Details" component={EditEducationDetailsScreen} />

@@ -7,7 +7,7 @@ require('dotenv').config();
 const authRoutes = require('./Routes/Auth.js');
 const userRoutes = require('./Routes/userRoutes.js'); // Assuming you have a user data route
 const jobRoutes = require('./Routes/jobRoutes');
-
+const notificationRoutes = require('./Routes/notificationRoutes.js');
 
 const apiUrl = process.env.API_URL;
 
@@ -27,7 +27,7 @@ app.use((req, res, next) => {
 app.use('/api/users', userRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/jobs', jobRoutes);
-
+app.use('/api/notifications', notificationRoutes);
 
 
 // Connect to MongoDB and start server

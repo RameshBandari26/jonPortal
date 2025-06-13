@@ -54,6 +54,7 @@ export default function HomePage() {
       console.log('Error fetching user data:', e);
     }
   };
+  
 
   const fetchJobStats = async () => {
     try {
@@ -192,7 +193,7 @@ export default function HomePage() {
               </Text>
             </View>
             <View style={styles.avatar}>
-              <TouchableOpacity style={styles.avatarText}>
+              <TouchableOpacity style={styles.avatarText} onPress={() => navigation.navigate('Notifications')}>
                 <Ionicons name="notifications-outline" size={24} color="black" style={{ marginRight: 10 }} />
 
               </TouchableOpacity>
