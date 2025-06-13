@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 
 const RoleSelectionScreen = ({ navigation }) => {
   return (
@@ -16,7 +16,7 @@ const RoleSelectionScreen = ({ navigation }) => {
       {/* Subtitle */}
       <Text style={styles.continueAs}>Continue as</Text>
       <Text style={styles.subText}>
-        Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor
+        Please select your role to proceed with the app
       </Text>
 
       {/* Role Selection Cards */}
@@ -25,33 +25,31 @@ const RoleSelectionScreen = ({ navigation }) => {
           style={styles.card}
           onPress={() => navigation.navigate('Login', { role: 'jobSeeker' })}
         >
-          {/* <Image
-           // source={require('../assets/logo.jpg')} // Replace with your asset
-            style={styles.cardImage}
-          /> */}
           <View>
-            <Text style={styles.cardTitle}>JOB SEEKERS</Text>
-            <Text style={styles.cardDesc}>Finding a job here never been easier than before</Text>
+            <Text style={styles.cardTitle}>Job Seeker</Text>
+            <Text style={styles.cardDesc}>
+              Finding a job here has never been easier
+            </Text>
           </View>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={styles.card}
-          onPress={() => navigation.navigate('Login', { role: 'company' })}
+          onPress={() => navigation.navigate('Login', { role: 'employer' })} // ✅ EMPLOYER role
         >
-          {/* <Image
-            source={require('./assets/employer.png')} // Replace with your asset
-            style={styles.cardImage}
-          /> */}
           <View>
-            <Text style={styles.cardTitle}>COMPANY</Text>
-            <Text style={styles.cardDesc}>Let's recruit your great candidate faster here</Text>
+            <Text style={styles.cardTitle}>Employer</Text>
+            <Text style={styles.cardDesc}>
+              Recruit great candidates faster and easier
+            </Text>
           </View>
         </TouchableOpacity>
       </View>
     </View>
   );
 };
+
+export default RoleSelectionScreen;
 
 const styles = StyleSheet.create({
   container: {
@@ -114,14 +112,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowOffset: { width: 0, height: 1 },
   },
-  cardImage: {
-    width: 50,
-    height: 50,
-    marginRight: 15,
-    resizeMode: 'contain',
-  },
   cardTitle: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#5A1EFF',
   },
@@ -131,5 +123,3 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 });
-
-export default RoleSelectionScreen;

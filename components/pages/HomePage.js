@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,161 +7,278 @@ import {
   Image,
   TouchableOpacity,
   StyleSheet,
+  RefreshControl,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import axios from 'axios';
+import TimeStamp from './TimeStamp.js';
+import { useNavigation } from '@react-navigation/native';
+import { Picker } from '@react-native-picker/picker';
 
-export default function HomePage({ navigation }) {
-  const recentJobs = [
-    {
-      id: 1,
-      title: 'Junior Software Engineer',
-      company: 'Highspeed Studios',
-      salary: '$500 - $1,000',
-      location: 'Jakarta, Indonesia',
-      description: 'Develop and maintain web applications.',
-    },
-    {
-      id: 2,
-      title: 'Database Engineer',
-      company: 'Lunar Digi Corp.',
-      salary: '$500 - $1,000',
-      location: 'London, United Kingdom',
-      description: 'Manage and optimize large-scale databases.',
-    },
-    {
-      id: 3,
-      title: 'Senior Software Engineer',
-      company: 'Darkseer Studios',
-      salary: '$500 - $1,000',
-      location: 'Medan, Indonesia',
-      description: 'Lead development teams in agile projects.',
-    },
-  ];
+
+export default function HomePage() {
+  const navigation = useNavigation();
+
+  const [user, setUser] = useState(null);
+  const [totalJobs, setTotalJobs] = useState(0);
+  const [openJobs, setOpenJobs] = useState(0);
+  const [latestJobs, setLatestJobs] = useState([]);
+  const [recommendedJobs, setRecommendedJobs] = useState([]);
+  const [appliedCount, setAppliedCount] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchUserData = async () => {
+    try {
+      const storedUser = await AsyncStorage.getItem('user');
+      const storedToken = await AsyncStorage.getItem('token');
+      const userObject = JSON.parse(storedUser);
+
+      if (userObject?.email) {
+        const response = await fetch('http://192.168.30.231:5000/api/users/userdata', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${storedToken}`,
+          },
+          body: JSON.stringify({ email: userObject.email }),
+        });
+
+        const data = await response.json();
+        setUser(data);
+      }
+    } catch (e) {
+      console.log('Error fetching user data:', e);
+    }
+  };
+
+  const fetchJobStats = async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const [userJobsRes, totalJobsRes] = await Promise.all([
+        axios.get('http://192.168.30.231:5000/api/jobs/my-jobs/count', {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        axios.get('http://192.168.30.231:5000/api/jobs/count'),
+      ]);
+      setOpenJobs(userJobsRes.data.count);
+      setTotalJobs(totalJobsRes.data.total);
+    } catch (error) {
+      console.error('Failed to fetch job stats:', error.message);
+    }
+  };
+
+  const fetchLatestJobs = async () => {
+    try {
+      const res = await axios.get('http://192.168.30.231:5000/api/jobs/latest');
+      setLatestJobs(res.data);
+    } catch (error) {
+      console.error('Failed to fetch latest jobs:', error.message);
+    }
+  };
+
+  const fetchAppliedCount = async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+
+      if (!token) {
+        console.error("No token found in AsyncStorage");
+        return;
+      }
+
+      const res = await fetch('http://192.168.30.231:5000/api/jobs/applied/count', {
+
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      const data = await res.json();
+      setAppliedCount(data.count);
+    } catch (err) {
+      console.error('Error fetching applied count:', err.message);
+    }
+  };
+
+
+  const fetchData = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([
+      fetchUserData(),
+      fetchJobStats(),
+      fetchLatestJobs(),
+      fetchAppliedCount(),
+    ]);
+    setRefreshing(false);
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  useEffect(() => {
+    setRecommendedJobs([...latestJobs.slice(0, 5)]);
+  }, [latestJobs]);
+
+  const username = user?.fullName || 'Guest';
+
+  const renderJobCard = (job) => (
+    <TouchableOpacity
+      key={job._id}
+      onPress={() => navigation.navigate('JobCard', { job })}
+      style={styles.jobCardWrapper}
+    >
+      <View style={styles.jobCardContainer}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.jobTitle}>{job.jobTitle}</Text>
+          <Text style={styles.companyInfo}>
+            {job.companyName} <Text style={styles.rating}>★ 3.8</Text> • 22 Reviews
+          </Text>
+          <View style={styles.rowInfo}>
+            <Ionicons name="briefcase-outline" size={16} color="#6B7280" />
+            <Text style={styles.rowText}> {job.experience || '1-3 Yrs'}</Text>
+            <Ionicons name="location-outline" size={16} color="#6B7280" style={{ marginLeft: 12 }} />
+            <Text style={styles.rowText}>{job.location}</Text>
+          </View>
+          <Text style={styles.description}>{job.description?.slice(0, 70)}...</Text>
+          <View style={styles.skillsContainer}>
+            {(job.Skills || ['React', 'Node']).map((skill, index) => (
+              <View key={index} style={styles.skillTag}>
+                <Text style={styles.skillText}>{skill}</Text>
+              </View>
+            ))}
+          </View>
+          <View style={styles.footer}>
+            <TimeStamp date={job.createdAt} />
+            <TouchableOpacity>
+              <Ionicons name="bookmark-outline" size={20} color="gray" />
+            </TouchableOpacity>
+          </View>
+        </View>
+        <Image
+          source={{ uri: job.companyLogo || 'https://placehold.co/48x48' }}
+          style={styles.logoImage}
+        />
+      </View>
+    </TouchableOpacity>
+  );
 
   return (
-    <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Header */}
-        <View style={styles.header}>
-         {/* <TouchableOpacity onPress={() => navigation.navigate('Sidebar')}>
-    <Ionicons name="menu-outline" size={30} color="black" />
-  </TouchableOpacity> */}
-  <TouchableOpacity onPress={() => navigation.openDrawer()}>
-  <Ionicons name="menu-outline" size={30} color="black" />
-</TouchableOpacity>
+    <SafeAreaView style={{ flex: 1, backgroundColor: 'white' }}>
+      <View style={styles.container}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={fetchData} />
+          }
+        >
+          {/* Header */}
+          <View style={styles.header}>
+            {/* <TouchableOpacity onPress={() => navigation.navigate('Sidebar')}>
+              <MaterialIcons name="menu" size={30} color="red" />
+            </TouchableOpacity> */}
+            <TouchableOpacity onPress={() => navigation.openDrawer()}>
+              <Ionicons name="menu-outline" size={30} color="black" />
+            </TouchableOpacity>
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Text style={styles.username}>{username}</Text>
+            </View>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>
+                {username.charAt(0).toUpperCase()}
+              </Text>
+            </View>
+            <View style={styles.avatar}>
+              <TouchableOpacity style={styles.avatarText}>
+                <Ionicons name="notifications-outline" size={24} color="black" style={{ marginRight: 10 }} />
 
-
-
-          <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={styles.greeting}>Good Morning</Text>
-            <Text style={styles.username}>Henry Kanwil</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
-          <View style={styles.avatar}>
-                    <TouchableOpacity style={styles.avatarText}>
-                      <Ionicons name="notifications-outline" size={24} color="black" style={{ marginRight: 10 }} />
+          {/* Search */}
+          <View style={styles.searchBox}>
+            
+            <TextInput placeholder="Search job here..." placeholderTextColor="#888" style={styles.searchInput} />
+            <Ionicons name="search" size={20} color="gray" 
+          onPress={() => navigation.navigate('Search')}/>
+          </View>
 
-                    </TouchableOpacity>
+          {/* Stats */}
+          <View style={styles.jobStats}>
+            <View style={styles.statCardPurple}>
+              <Text style={styles.statLabel}>Jobs Applied</Text>
+              <Text style={styles.statValue}>{appliedCount}</Text>
+            </View>
+            <View style={styles.statCardBlue}>
+              <Text style={styles.statLabel}>Total Jobs</Text>
+              <Text style={styles.statValue}>{totalJobs}</Text>
+            </View>
           </View>
-        </View>
 
-        {/* Search */}
-        <View style={styles.searchBox}>
-          <Ionicons name="search" size={20} color="gray" />
-          <TextInput placeholder="Search job here..." placeholderTextColor="gray" style={styles.searchInput} />
-        </View>
+          {/* Status */}
+          <View style={styles.statusCard}>
+            <View>
+              <Text style={styles.statLabel}>Pending</Text>
+              <Text style={styles.statValue}>5</Text>
+            </View>
+            <View>
+              <Text style={styles.statLabel}>Declined</Text>
+              <Text style={styles.statValue}>6</Text>
+            </View>
+          </View>
 
-        {/* Job Stats */}
-        <View style={styles.jobStats}>
-          <View style={styles.statCardPurple}>
-            <Text style={styles.statLabel}>Jobs Applied</Text>
-            <Text style={styles.statValue}>29</Text>
-          </View>
-          <View style={styles.statCardBlue}>
-            <Text style={styles.statLabel}>Total Jobs</Text>
-            <Text style={styles.statValue}>100</Text>
-          </View>
-        </View>
+          {/* Recommended */}
+          <Text style={styles.sectionTitle}>Recommended Jobs</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {recommendedJobs.map((job) => (
+              <View key={job._id} style={{ marginRight: 12, width: 280 }}>
+                {renderJobCard(job)}
+              </View>
+            ))}
+          </ScrollView>
 
-        {/* Status */}
-        <View style={styles.statusCard}>
-          <View>
-            <Text style={styles.statLabel}>Pending</Text>
-            <Text style={styles.statValue}>5</Text>
+          {/* Recent */}
+          <View style={styles.recentHeader}>
+            <Text style={styles.sectionTitle}>Recent Jobs</Text>
+            <TouchableOpacity>
+              <Text style={styles.linkText}>More</Text>
+            </TouchableOpacity>
           </View>
-          <View>
-            <Text style={styles.statLabel}>Declined</Text>
-            <Text style={styles.statValue}>6</Text>
-          </View>
-        </View>
-
-        {/* Recommended Jobs */}
-        <Text style={styles.sectionTitle}>Recommended Jobs</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <View style={styles.recommendedCard}>
-            <Image
-              source={{ uri: 'https://placehold.co/50' }}
-              style={styles.jobImage}
-            />
-            <Text style={styles.jobTitle}>Software Engineer</Text>
-            <Text style={styles.jobLocation}>Jakarta, Indonesia</Text>
-            <Text style={styles.jobSalary}>$500 - $1,000</Text>
-          </View>
+          {latestJobs.map(renderJobCard)}
         </ScrollView>
 
-        {/* Recent Jobs */}
-        <View style={styles.recentHeader}>
-          <Text style={styles.sectionTitle}>Recent Jobs</Text>
-          <TouchableOpacity>
-            <Text style={styles.linkText}>More</Text>
+        {/* Bottom Nav */}
+        <View style={styles.bottomNav}>
+          <TouchableOpacity style={styles.navItem}>
+            <Ionicons name="home" size={24} color="#7c3aed" />
+            <Text style={styles.navTextActive}>Home</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.navItem}>
+            <MaterialIcons name="interpreter-mode" size={24} color="gray" />
+            <Text style={styles.navText}>Interviews</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.navItem}>
+            <Ionicons name="chatbubble" size={24} color="gray" />
+            <Text style={styles.navText}>Messages</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.navItem}>
+            <FontAwesome name="user" size={24} color="gray" />
+            <Text style={styles.navText}>Account</Text>
           </TouchableOpacity>
         </View>
-
-        {recentJobs.map((job, index) => (
-          <TouchableOpacity
-                onPress={() => navigation.navigate('JobDetails', { job })}
-              >
-          <View style={styles.jobCard} key={index}>
-            <Text style={styles.jobTitleBold}>{job.title}</Text>
-            <Text style={styles.jobCompany}>{job.company}</Text>
-            <Text style={styles.jobSalary}>{job.salary}</Text>
-            <Text style={styles.jobLocation}>{job.location}</Text>
-  
-          </View>
-            </TouchableOpacity>
-        ))}
-      </ScrollView>
-
-      {/* Bottom Navigation */}
-      <View style={styles.bottomNav}>
-        <TouchableOpacity style={styles.navItem}>
-          <Ionicons name="home" size={24} color="#7c3aed" />
-          <Text style={styles.navTextActive}>Home</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem}>
-          <MaterialIcons name="interpreter-mode" size={24} color="gray" />
-          <Text style={styles.navText}>Interviews</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem}>
-          <Ionicons name="chatbubble" size={24} color="gray" />
-          <Text style={styles.navText}>Messages</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem}>
-          <FontAwesome name="user" size={24} color="gray" />
-          <Text style={styles.navText}>Account</Text>
-        </TouchableOpacity>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: 'white',paddingTop:20 },
+  container: { flex: 1, backgroundColor: 'white' },
   scrollContent: { padding: 16, paddingBottom: 100 },
   header: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
-  greeting: { color: '#6b21a8', fontSize: 16 },
   username: { color: '#6b21a8', fontSize: 20, fontWeight: 'bold' },
   avatar: {
     backgroundColor: '#fff',
@@ -178,9 +295,10 @@ const styles = StyleSheet.create({
     padding: 10,
     flexDirection: 'row',
     alignItems: 'center',
+    color: 'black',
     elevation: 2,
   },
-  searchInput: { marginLeft: 10, flex: 1, color: '#000' },
+  searchInput: { marginLeft: 10, flex: 1, },
   jobStats: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 20 },
   statCardPurple: {
     backgroundColor: '#7c3aed',
@@ -200,23 +318,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#22c55e',
     borderRadius: 12,
     marginTop: 16,
-    padding: 20,
+    padding: 16,
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
-  sectionTitle: { fontSize: 18, fontWeight: 'bold', marginTop: 24, marginBottom: 8 },
-  recommendedCard: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    elevation: 2,
-    padding: 16,
-    marginRight: 12,
-    width: 240,
-  },
-  jobImage: { width: 48, height: 48, borderRadius: 8 },
-  jobTitle: { fontSize: 16, fontWeight: '600', marginTop: 8 },
-  jobLocation: { color: 'gray', fontSize: 12 },
-  jobSalary: { color: '#7c3aed', fontWeight: '600', marginTop: 4 },
+  sectionTitle: { fontSize: 18, fontWeight: 'bold', marginTop: 24, marginBottom: 8, color: '#1f2937' },
   recentHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -224,30 +330,75 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   linkText: { color: '#7c3aed' },
-  jobCard: {
-    backgroundColor: 'white',
+  jobCardWrapper: {
+    padding: 12,
+    backgroundColor: '#fff',
     borderRadius: 12,
-    elevation: 2,
-    padding: 16,
-    marginBottom: 12,
+    marginBottom: 16,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
-  jobTitleBold: { fontWeight: 'bold', fontSize: 16 },
-  jobCompany: { color: 'gray', fontSize: 12 },
-  buttonContainer: {
+  jobCardContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+  },
+  jobTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1f2937',
+  },
+  companyInfo: {
+    color: '#6B7280',
+    marginVertical: 4,
+  },
+  rating: {
+    color: '#fbbf24',
+  },
+  rowInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 4,
+  },
+  rowText: {
+    color: '#4B5563',
+    fontSize: 13,
+  },
+  description: {
+    color: '#6B7280',
+    fontSize: 13,
+    marginVertical: 4,
+  },
+  skillsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 8,
+  },
+  skillTag: {
+    backgroundColor: '#E5E7EB',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 16,
+    marginRight: 8,
+    marginBottom: 6,
+  },
+  skillText: {
+    fontSize: 12,
+    color: '#374151',
+  },
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginTop: 10,
   },
-  jobButton: {
-    backgroundColor: '#7c3aed',
-    paddingVertical: 6,
-    paddingHorizontal: 14,
+  logoImage: {
+    width: 48,
+    height: 48,
     borderRadius: 8,
-  },
-  jobButtonText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: '600',
+    marginLeft: 8,
   },
   bottomNav: {
     position: 'absolute',
@@ -264,5 +415,4 @@ const styles = StyleSheet.create({
   navItem: { alignItems: 'center' },
   navText: { fontSize: 12, color: 'gray' },
   navTextActive: { fontSize: 12, color: '#7c3aed' },
-});  
-
+});

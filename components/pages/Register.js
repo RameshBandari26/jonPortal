@@ -1,8 +1,8 @@
+
 import CheckBox from '@react-native-community/checkbox';
 import React, { useState } from 'react';
 import CustomAlert from '../CustomAlert';
 import {
-  Image,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -15,23 +15,23 @@ import {
 import {
   GoogleSignin,
   GoogleSigninButton,
-  statusCodes,
 } from '@react-native-google-signin/google-signin';
-
 
 import Icon from 'react-native-vector-icons/Ionicons';
 import { signIn } from '../../const/Signin';
-import { WEB_CLIENT_ID,IOS_CLIENT_ID } from '../../const/key';
+import { WEB_CLIENT_ID, IOS_CLIENT_ID } from '../../const/key';
 
 GoogleSignin.configure({
-  webClientId: WEB_CLIENT_ID, // client ID of type WEB for your server. Required to get the `idToken` on the user object, and for offline access.
-  scopes: ['https://www.googleapis.com/auth/drive.readonly'], // what API you want to access on behalf of the user, default is email and profile
-  forceCodeForRefreshToken: false, // [Android] related to `serverAuthCode`, read the docs link below *.
-  iosClientId: 'IOS_CLIENT_ID', // [iOS] if you want to specify the client ID of type iOS (otherwise, it is taken from GoogleService-Info.plist)
+  webClientId: WEB_CLIENT_ID,
+  scopes: ['https://www.googleapis.com/auth/drive.readonly'],
+  iosClientId: IOS_CLIENT_ID,
 });
 
-export default function RegistrationScreen({ navigation }) {
+export default function RegistrationScreen({ navigation, route }) {
+  const role = route?.params?.role || 'jobSeeker'; // dynamic role
+
   const [fullName, setFullName] = useState('');
+  const [companyName, setCompanyName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [mobileNumber, setMobileNumber] = useState('');
@@ -45,17 +45,26 @@ export default function RegistrationScreen({ navigation }) {
 
   const handleRegister = async () => {
     try {
-      const res = await fetch('http://192.168.168.231:5000/api/register', {
+      const body = {
+        fullName,
+        email,
+        password,
+        mobileNumber,
+        updatesViaEmail: checked,
+        role,
+      };
+
+      if (role === 'jobSeeker') {
+        body.workStatus = isExperienced ? 'experienced' : 'fresher';
+
+      } else if (role === 'employer') {
+        body.companyName = companyName;
+      }
+
+      const res = await fetch('http://192.168.30.231:5000/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fullName,
-          email,
-          password,
-          mobileNumber,
-          isExperienced,
-          wantsEmailUpdates: checked,
-        }),
+        body: JSON.stringify(body),
       });
 
       const data = await res.json();
@@ -82,8 +91,6 @@ export default function RegistrationScreen({ navigation }) {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-
-        {/* Logo */}{/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <View style={styles.backButton}>
@@ -94,12 +101,26 @@ export default function RegistrationScreen({ navigation }) {
         </View>
 
         <View style={styles.separatorLine} />
-        {/* Form Title */}
-        <Text style={styles.heading}>Create your profile</Text>
-        <Text style={styles.subheading}>please fill the Registration form below</Text>
 
-        {/* Form Fields */}
-        <Text style={styles.label}>Full name</Text>
+        <Text style={styles.heading}>
+          {role === 'employer' ? 'Register as Employer' : 'Create your profile'}
+        </Text>
+        <Text style={styles.subheading}>Please fill the registration form below</Text>
+
+        {role === 'employer' && (
+          <>
+            <Text style={styles.label}>Company Name</Text>
+            <TextInput
+              placeholder="Enter company name"
+              placeholderTextColor="#888"
+              value={companyName}
+              onChangeText={setCompanyName}
+              style={styles.input}
+            />
+          </>
+        )}
+
+        <Text style={styles.label}>Full Name</Text>
         <TextInput
           placeholder="Enter your name"
           placeholderTextColor="#888"
@@ -128,18 +149,15 @@ export default function RegistrationScreen({ navigation }) {
           style={styles.input}
         />
 
-        {/* Google Login Separator */}
         <Text style={styles.separator}> ------------  or  ----------- </Text>
+
         <TouchableOpacity style={styles.googleButton}>
-          {/* <Icon name="logo-google" size={24} color="#4169E1" style={{ marginRight: 10 }} />
-                    <Text style={styles.googleButtonText}>Google</Text> */}
           <GoogleSigninButton
             size={GoogleSigninButton.Size.Wide}
             color={GoogleSigninButton.Color.Dark}
             onPress={signIn}
             disabled={false}
           />
-
         </TouchableOpacity>
 
         <Text style={styles.label}>Mobile Number</Text>
@@ -151,26 +169,28 @@ export default function RegistrationScreen({ navigation }) {
           style={styles.input}
         />
 
-        {/* Work Status */}
-        <Text style={styles.label}>Work Status</Text>
-        <View style={styles.statusContainer}>
-          <TouchableOpacity
-            style={[styles.statusButton, isExperienced && styles.selectedStatus]}
-            onPress={() => setIsExperienced(true)}
-          >
-            <Text>I'm experienced</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.statusButton, !isExperienced && styles.selectedStatus]}
-            onPress={() => setIsExperienced(false)}
-          >
-            <Text style={{ textAlign: 'center' }}>
-              I'm fresher{'\n'}(Eager to Contribute)
-            </Text>
-          </TouchableOpacity>
-        </View>
+        {role === 'jobSeeker' && (
+          <>
+            <Text style={styles.label}>Work Status</Text>
+            <View style={styles.statusContainer}>
+              <TouchableOpacity
+                style={[styles.statusButton, isExperienced && styles.selectedStatus]}
+                onPress={() => setIsExperienced(true)}
+              >
+                <Text>I'm experienced</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.statusButton, !isExperienced && styles.selectedStatus]}
+                onPress={() => setIsExperienced(false)}
+              >
+                <Text style={{ textAlign: 'center' }}>
+                  I'm fresher{'\n'}(Eager to Contribute)
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
 
-        {/* Checkbox */}
         <View style={styles.checkboxContainer}>
           <CheckBox
             value={checked}
@@ -184,12 +204,10 @@ export default function RegistrationScreen({ navigation }) {
           By clicking Register, you agree to the Terms and Conditions & Privacy Policy of Talent96
         </Text>
 
-        {/* Register Button */}
         <TouchableOpacity style={styles.registerButton} onPress={handleRegister}>
           <Text style={styles.registerButtonText}>Register Now</Text>
         </TouchableOpacity>
 
-        {/* Custom Alert */}
         <CustomAlert
           visible={alertVisible}
           title={alertTitle}
@@ -263,16 +281,6 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     backgroundColor: '#fff',
     marginBottom: 1,
-  },
-  googleIcon: {
-    width: 30,
-    height: 30,
-    marginRight: 2,
-  },
-  googleButtonText: {
-    fontWeight: '600',
-    color: '#4169E1',
-    fontSize: 20,
   },
   statusContainer: {
     flexDirection: 'row',
