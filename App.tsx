@@ -19,6 +19,7 @@ import RegistrationScreen from './components/pages/Register';
 import RoleSelectionScreen from './components/pages/RoleSelectionScreen';
 import AccountVerificationScreen from './components/pages/settings/AccountVerificationScreen';
 import NotificationScreen from './components/pages/settings/NotificationScreen';
+import EditEmailMobileVerify from './components/pages/settings/EditEmailMobileVerify.js';
 import SplashScreen from './components/pages/SplashScreen';
 
 import UpdateProfileScreen from './components/pages/UpdateProfileScreen';
@@ -58,6 +59,7 @@ export default function App() {
         <Stack.Screen name="Edit Roles and responsibilities Details" component={EditRolesResponsibilitiesScreen} />
         <Stack.Screen name="Edit Professional Details" component={EditProfessionalDetailsScreen} />
         <Stack.Screen name="JobResults" component={JobResultsScreen} />
+        <Stack.Screen name="EditEmailMobileVerify" component={EditEmailMobileVerify} />
 
         {/* Recruiter */}
         <Stack.Screen name="RecruiterHomePage" component={RecruiterHomePage} />

@@ -17,8 +17,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import axios from 'axios';
 import TimeStamp from './TimeStamp.js';
 import { useNavigation } from '@react-navigation/native';
-import { Picker } from '@react-native-picker/picker';
-
 
 export default function HomePage() {
   const navigation = useNavigation();
@@ -31,30 +29,73 @@ export default function HomePage() {
   const [appliedCount, setAppliedCount] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
 
-  const fetchUserData = async () => {
-    try {
-      const storedUser = await AsyncStorage.getItem('user');
-      const storedToken = await AsyncStorage.getItem('token');
-      const userObject = JSON.parse(storedUser);
+//   // ✅ Updated fetchUserData to use userId instead of email
+//   const fetchUserData = async () => {
+//     try {
+//       const storedUser = await AsyncStorage.getItem('user');
+//       const storedToken = await AsyncStorage.getItem('token');
+//       const userObject = JSON.parse(storedUser);
 
-      if (userObject?.email) {
-        const response = await fetch('http://192.168.30.231:5000/api/users/userdata', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${storedToken}`,
-          },
-          body: JSON.stringify({ email: userObject.email }),
-        });
+//       if (userObject?._id) {
+//         const response = await fetch('http://192.168.30.231:5000/api/users/userdata', {
+//           method: 'POST',
+//           headers: {
+//             'Content-Type': 'application/json',
+//             Authorization: `Bearer ${storedToken}`,
+//           },
+//           body: JSON.stringify({ userId: userObject._id }), // ✅ FIXED: use userId here
+//         });
 
-        const data = await response.json();
-        setUser(data);
-      }
-    } catch (e) {
-      console.log('Error fetching user data:', e);
+//         const data = await response.json();
+//         setUser(data);
+//         console.log('Fetched backend data:', data);
+//       }
+//       console.log('Stored user:', userObject);
+// console.log('Calling backend with userId:', userObject?._id);
+
+
+//     } catch (e) {
+//       console.log('Error fetching user data:', e);
+//     }
+//   };
+
+const fetchUserData = async () => {
+  try {
+    const storedToken = await AsyncStorage.getItem('token');
+
+    if (!storedToken) {
+      console.error('No token found');
+      return;
     }
-  };
-  
+
+    const response = await fetch('http://192.168.30.231:5000/api/users/userdata', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${storedToken}`,
+      },
+      // 🔴 Don't send body — userId is derived from token
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      setUser(data);
+      console.log('Fetched backend data:', data);
+    } else {
+      console.error('Error from backend:', data.message);
+    }
+
+    // Optional: log stored user separately if needed
+    const storedUser = await AsyncStorage.getItem('user');
+    const userObject = JSON.parse(storedUser);
+    console.log('Stored user:', userObject);
+
+  } catch (e) {
+    console.log('Error fetching user data:', e);
+  }
+};
+
 
   const fetchJobStats = async () => {
     try {
@@ -84,14 +125,12 @@ export default function HomePage() {
   const fetchAppliedCount = async () => {
     try {
       const token = await AsyncStorage.getItem('token');
-
       if (!token) {
         console.error("No token found in AsyncStorage");
         return;
       }
 
       const res = await fetch('http://192.168.30.231:5000/api/jobs/applied/count', {
-
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -103,7 +142,6 @@ export default function HomePage() {
       console.error('Error fetching applied count:', err.message);
     }
   };
-
 
   const fetchData = useCallback(async () => {
     setRefreshing(true);
@@ -172,15 +210,10 @@ export default function HomePage() {
       <View style={styles.container}>
         <ScrollView
           contentContainerStyle={styles.scrollContent}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={fetchData} />
-          }
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={fetchData} />}
         >
           {/* Header */}
           <View style={styles.header}>
-            {/* <TouchableOpacity onPress={() => navigation.navigate('Sidebar')}>
-              <MaterialIcons name="menu" size={30} color="red" />
-            </TouchableOpacity> */}
             <TouchableOpacity onPress={() => navigation.openDrawer()}>
               <Ionicons name="menu-outline" size={30} color="black" />
             </TouchableOpacity>
@@ -195,17 +228,14 @@ export default function HomePage() {
             <View style={styles.avatar}>
               <TouchableOpacity style={styles.avatarText} onPress={() => navigation.navigate('Notifications')}>
                 <Ionicons name="notifications-outline" size={24} color="black" style={{ marginRight: 10 }} />
-
               </TouchableOpacity>
             </View>
           </View>
 
           {/* Search */}
           <View style={styles.searchBox}>
-            
             <TextInput placeholder="Search job here..." placeholderTextColor="#888" style={styles.searchInput} />
-            <Ionicons name="search" size={20} color="gray" 
-          onPress={() => navigation.navigate('Search')}/>
+            <Ionicons name="search" size={20} color="gray" onPress={() => navigation.navigate('Search')} />
           </View>
 
           {/* Stats */}

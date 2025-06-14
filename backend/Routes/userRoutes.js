@@ -1,22 +1,23 @@
 const express = require('express');
 const router = express.Router();
-const User = require('../models/User.js'); // Adjust path as needed
+const User = require('../models/User.js'); // Adjust path if needed
 const verifyToken = require('../Middleware/Auth'); 
 
-// POST /api/users/userdata
-router.post('/userdatas', verifyToken, async (req, res) => {
+// ✅ POST /api/users/userdata — fetch user info securely
+router.post('/userdata', verifyToken, async (req, res) => {
   try {
-    const userId = req.body.userId;  // get userId from body
+    const userId = req.user.id; // 🔄 Updated: using user ID from JWT instead of body
     console.log('UserId received:', userId);
 
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: 'User not found' });
 
-    // send user data
     res.json({
       fullName: user.fullName,
       email: user.email,
+      emailVerified: user.emailVerified,           // ✅ added
       mobileNumber: user.mobileNumber,
+      mobileVerified: user.mobileVerified,         // ✅ added
       workStatus: user.workStatus,
       updatesViaEmail: user.updatesViaEmail,
       role: user.role,
@@ -27,7 +28,6 @@ router.post('/userdatas', verifyToken, async (req, res) => {
       ctc: user.ctc || '',
       graduation: user.graduation || '',
       gender: user.gender || '',
-      location: user.location || '',
     });
   } catch (err) {
     console.error(err);
@@ -35,13 +35,14 @@ router.post('/userdatas', verifyToken, async (req, res) => {
   }
 });
 
+// 🧹 Removed duplicate POST /userdata (without verifyToken)
+// router.post('/userdata', async (req, res) => { ... });
 
 
-// Basic details 
-
+// ✅ GET /basic-details — fetch specific user fields
 router.get('/basic-details', verifyToken, async (req, res) => {
   try {
-    const userId = req.user.id; // Retrieved from JWT token
+    const userId = req.user.id;
     const user = await User.findById(userId).select('fullName graduation gender location');
 
     if (!user) {
@@ -54,15 +55,12 @@ router.get('/basic-details', verifyToken, async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 });
-//update
-router.put('/basic-details',verifyToken, async (req, res) => {
-   
+
+// ✅ PUT /basic-details — update specific fields
+router.put('/basic-details', verifyToken, async (req, res) => {
   try {
-    //console.log('Received request to update basic details');
-    const userId = req.user.id; // comes from decoded JWT
-   // console.log('User ID from token:', userId);
+    const userId = req.user.id;
     const { name, graduation, gender, location } = req.body;
-    console.log('Updating user:', userId, 'with name:', name,'graduation:', graduation,'gender',gender,'location',location);
 
     const updatedUser = await User.findByIdAndUpdate(
       userId,
@@ -90,19 +88,7 @@ router.put('/basic-details',verifyToken, async (req, res) => {
 });
 
 
-
-router.post('/userdata', async (req, res) => {
-  const { userId } = req.body;
-  try {
-    const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ message: 'User not found' });
-    res.json(user);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
-
-// Update user data
+// ✅ PUT /update — general user update (admin or profile edit)
 router.put('/update', async (req, res) => {
   const { userId, ...updateData } = req.body;
   try {
@@ -115,17 +101,32 @@ router.put('/update', async (req, res) => {
 });
 
 
+// ✅ GET /contact-verification — used for showing email/mobile verification in frontend
+router.get('/contact-verification', verifyToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const user = await User.findById(userId).select('email mobileNumber emailVerified mobileVerified'); // 🔄 fixed `phoneVerified`
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json({
+      success: true,
+      email: user.email,
+      mobileNumber: user.mobileNumber,
+      emailVerified: user.emailVerified,
+      mobileVerified: user.mobileVerified,
+    });
+  } catch (error) {
+    console.error('Error fetching contact info:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
 
 
-
-
-
-
-// routes/userRoutes.js
-
-
-
-// Fetch job seekers
+// ✅ GET /candidates — fetch job seekers
 router.get('/candidates', async (req, res) => {
   try {
     const users = await User.find({ role: 'jobSeeker' }).select('-password');
@@ -135,8 +136,4 @@ router.get('/candidates', async (req, res) => {
   }
 });
 
-module.exports = router;
-
-
-module.exports = router;
 module.exports = router;

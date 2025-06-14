@@ -1,17 +1,47 @@
-
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  TouchableOpacity,
+} from 'react-native';
 import { DrawerContentScrollView } from '@react-navigation/drawer';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const Sidebar = (props) => {
   const navigation = useNavigation();
   const [expandedMenu, setExpandedMenu] = useState(null);
+  const [user, setUser] = useState(null); // state to store user data
 
   const handleExpand = (index) => {
     setExpandedMenu(expandedMenu === index ? null : index);
   };
+
+  // ✅ Fetch user data from backend
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const token = await AsyncStorage.getItem('token');
+        const response = await fetch('http://192.168.30.231:5000/api/users/userdata', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        const data = await response.json();
+        setUser(data);
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+      }
+    };
+
+    fetchUserData();
+  }, []);
 
   const menuItems = [
     { title: 'Home', icon: 'home', submenu: [], screen: 'HomePage' },
@@ -72,10 +102,13 @@ const Sidebar = (props) => {
   return (
     <DrawerContentScrollView {...props}>
       <View style={styles.profileSection}>
-        <Image source={{ uri: 'https://via.placeholder.com/60' }} style={styles.profilePic} />
+        <Image
+          source={{ uri: 'https://via.placeholder.com/60' }} // You can use user.profileImage if available
+          style={styles.profilePic}
+        />
         <View style={styles.profileInfo}>
-          <Text style={styles.userName}>Kothapalli</Text>
-          <Text style={styles.userDetail}>B.Tech, RGUKT Basar</Text>
+          <Text style={styles.userName}>{user?.fullName || 'Loading...'}</Text>
+          <Text style={styles.userDetail}>{user?.graduation || 'B.Tech Graduate'}</Text>
           <TouchableOpacity onPress={() => navigation.navigate('Profile')}>
             <Text style={styles.updateProfile}>View & update profile</Text>
           </TouchableOpacity>

@@ -1,4 +1,4 @@
-
+//server.js
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -8,6 +8,7 @@ const authRoutes = require('./Routes/Auth.js');
 const userRoutes = require('./Routes/userRoutes.js'); // Assuming you have a user data route
 const jobRoutes = require('./Routes/jobRoutes');
 const notificationRoutes = require('./Routes/notificationRoutes.js');
+const verifyRoutes = require('./Routes/verifyRoutes.js');
 
 const apiUrl = process.env.API_URL;
 
@@ -28,6 +29,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/jobs', jobRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/verify', verifyRoutes);
 
 
 // Connect to MongoDB and start server
