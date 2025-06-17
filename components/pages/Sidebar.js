@@ -95,7 +95,7 @@ const Sidebar = (props) => {
     },
     { title: 'Feedback', icon: 'feedback', submenu: [], screen: 'Feedback' },
     { title: 'Help', icon: 'help', submenu: [], screen: 'Help' },
-    { title: 'Logout', icon: 'logout', submenu: [], screen: 'Login' },
+    { title: 'Logout', icon: 'logout', submenu: [], screen: 'RoleSelect' },
     { title: 'About Us', icon: 'info', submenu: [], screen: 'AboutUs' },
   ];
 

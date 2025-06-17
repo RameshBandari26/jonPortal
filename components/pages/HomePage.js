@@ -17,10 +17,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import axios from 'axios';
 import TimeStamp from './TimeStamp.js';
 import { useNavigation } from '@react-navigation/native';
+import io from 'socket.io-client';
 
 export default function HomePage() {
   const navigation = useNavigation();
-
   const [user, setUser] = useState(null);
   const [totalJobs, setTotalJobs] = useState(0);
   const [openJobs, setOpenJobs] = useState(0);
@@ -28,74 +28,37 @@ export default function HomePage() {
   const [recommendedJobs, setRecommendedJobs] = useState([]);
   const [appliedCount, setAppliedCount] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [socket, setSocket] = useState(null);
 
-//   // ✅ Updated fetchUserData to use userId instead of email
-//   const fetchUserData = async () => {
-//     try {
-//       const storedUser = await AsyncStorage.getItem('user');
-//       const storedToken = await AsyncStorage.getItem('token');
-//       const userObject = JSON.parse(storedUser);
-
-//       if (userObject?._id) {
-//         const response = await fetch('http://192.168.30.231:5000/api/users/userdata', {
-//           method: 'POST',
-//           headers: {
-//             'Content-Type': 'application/json',
-//             Authorization: `Bearer ${storedToken}`,
-//           },
-//           body: JSON.stringify({ userId: userObject._id }), // ✅ FIXED: use userId here
-//         });
-
-//         const data = await response.json();
-//         setUser(data);
-//         console.log('Fetched backend data:', data);
-//       }
-//       console.log('Stored user:', userObject);
-// console.log('Calling backend with userId:', userObject?._id);
-
-
-//     } catch (e) {
-//       console.log('Error fetching user data:', e);
-//     }
-//   };
-
-const fetchUserData = async () => {
-  try {
-    const storedToken = await AsyncStorage.getItem('token');
-
-    if (!storedToken) {
-      console.error('No token found');
-      return;
+  const fetchUserData = async () => {
+    try {
+      const storedToken = await AsyncStorage.getItem('token');
+      if (!storedToken) return;
+      const response = await fetch('http://192.168.30.231:5000/api/users/userdata', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${storedToken}`,
+        },
+      });
+      const data = await response.json();
+      if (response.ok) setUser(data);
+    } catch (e) {
+      console.log('Error fetching user data:', e);
     }
+  };
 
-    const response = await fetch('http://192.168.30.231:5000/api/users/userdata', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${storedToken}`,
-      },
-      // 🔴 Don't send body — userId is derived from token
-    });
-
-    const data = await response.json();
-
-    if (response.ok) {
-      setUser(data);
-      console.log('Fetched backend data:', data);
-    } else {
-      console.error('Error from backend:', data.message);
+  const fetchUnreadCount = async () => {
+    try {
+      const userId = await AsyncStorage.getItem('userId');
+      const res = await axios.get(`http://192.168.30.231:5000/api/notifications/${userId}`);
+      const unread = res.data.filter(n => !n.isRead).length;
+      setUnreadCount(unread);
+    } catch (err) {
+      console.error('Failed to fetch unread notifications:', err.message);
     }
-
-    // Optional: log stored user separately if needed
-    const storedUser = await AsyncStorage.getItem('user');
-    const userObject = JSON.parse(storedUser);
-    console.log('Stored user:', userObject);
-
-  } catch (e) {
-    console.log('Error fetching user data:', e);
-  }
-};
-
+  };
 
   const fetchJobStats = async () => {
     try {
@@ -125,17 +88,12 @@ const fetchUserData = async () => {
   const fetchAppliedCount = async () => {
     try {
       const token = await AsyncStorage.getItem('token');
-      if (!token) {
-        console.error("No token found in AsyncStorage");
-        return;
-      }
-
+      if (!token) return;
       const res = await fetch('http://192.168.30.231:5000/api/jobs/applied/count', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       });
-
       const data = await res.json();
       setAppliedCount(data.count);
     } catch (err) {
@@ -150,6 +108,7 @@ const fetchUserData = async () => {
       fetchJobStats(),
       fetchLatestJobs(),
       fetchAppliedCount(),
+      fetchUnreadCount(),
     ]);
     setRefreshing(false);
   }, []);
@@ -161,6 +120,22 @@ const fetchUserData = async () => {
   useEffect(() => {
     setRecommendedJobs([...latestJobs.slice(0, 5)]);
   }, [latestJobs]);
+
+  useEffect(() => {
+    const setupSocket = async () => {
+      const userId = await AsyncStorage.getItem('userId');
+      const s = io('http://192.168.30.231:5000');
+      s.emit('join', userId);
+      s.on('new_notification', (notification) => {
+        setUnreadCount(prev => prev + 1);
+      });
+      setSocket(s);
+    };
+    setupSocket();
+    return () => {
+      if (socket) socket.disconnect();
+    };
+  }, []);
 
   const username = user?.fullName || 'Guest';
 
@@ -212,7 +187,6 @@ const fetchUserData = async () => {
           contentContainerStyle={styles.scrollContent}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={fetchData} />}
         >
-          {/* Header */}
           <View style={styles.header}>
             <TouchableOpacity onPress={() => navigation.openDrawer()}>
               <Ionicons name="menu-outline" size={30} color="black" />
@@ -226,8 +200,26 @@ const fetchUserData = async () => {
               </Text>
             </View>
             <View style={styles.avatar}>
-              <TouchableOpacity style={styles.avatarText} onPress={() => navigation.navigate('Notifications')}>
-                <Ionicons name="notifications-outline" size={24} color="black" style={{ marginRight: 10 }} />
+              <TouchableOpacity onPress={() => {
+                setUnreadCount(0);
+                navigation.navigate('Notifications');
+              }}>
+                <View>
+                  <Ionicons name="notifications-outline" size={24} color="black" style={{ marginRight: 10 }} />
+                  {unreadCount > 0 && (
+                    <View style={{
+                      position: 'absolute',
+                      top: -4,
+                      right: 0,
+                      backgroundColor: 'red',
+                      borderRadius: 8,
+                      paddingHorizontal: 4,
+                      paddingVertical: 1,
+                    }}>
+                      <Text style={{ color: 'white', fontSize: 10 }}>{unreadCount}</Text>
+                    </View>
+                  )}
+                </View>
               </TouchableOpacity>
             </View>
           </View>
@@ -249,8 +241,7 @@ const fetchUserData = async () => {
               <Text style={styles.statValue}>{totalJobs}</Text>
             </View>
           </View>
-
-          {/* Status */}
+            {/* Status */}
           <View style={styles.statusCard}>
             <View>
               <Text style={styles.statLabel}>Pending</Text>
@@ -281,26 +272,6 @@ const fetchUserData = async () => {
           </View>
           {latestJobs.map(renderJobCard)}
         </ScrollView>
-
-        {/* Bottom Nav */}
-        <View style={styles.bottomNav}>
-          <TouchableOpacity style={styles.navItem}>
-            <Ionicons name="home" size={24} color="#7c3aed" />
-            <Text style={styles.navTextActive}>Home</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.navItem}>
-            <MaterialIcons name="interpreter-mode" size={24} color="gray" />
-            <Text style={styles.navText}>Interviews</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.navItem}>
-            <Ionicons name="chatbubble" size={24} color="gray" />
-            <Text style={styles.navText}>Messages</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.navItem}>
-            <FontAwesome name="user" size={24} color="gray" />
-            <Text style={styles.navText}>Account</Text>
-          </TouchableOpacity>
-        </View>
       </View>
     </SafeAreaView>
   );
@@ -326,10 +297,9 @@ const styles = StyleSheet.create({
     padding: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    color: 'black',
     elevation: 2,
   },
-  searchInput: { marginLeft: 10, flex: 1, },
+  searchInput: { marginLeft: 10, flex: 1 },
   jobStats: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 20 },
   statCardPurple: {
     backgroundColor: '#7c3aed',
@@ -345,20 +315,20 @@ const styles = StyleSheet.create({
   },
   statLabel: { color: 'white', fontSize: 14 },
   statValue: { color: 'white', fontSize: 24, fontWeight: 'bold', marginTop: 8 },
-  statusCard: {
-    backgroundColor: '#22c55e',
-    borderRadius: 12,
-    marginTop: 16,
-    padding: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
   sectionTitle: { fontSize: 18, fontWeight: 'bold', marginTop: 24, marginBottom: 8, color: '#1f2937' },
   recentHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: 24,
     marginBottom: 8,
+  },
+    statusCard: {
+    backgroundColor: '#22c55e',
+    borderRadius: 12,
+    marginTop: 16,
+    padding: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
   linkText: { color: '#7c3aed' },
   jobCardWrapper: {
@@ -376,37 +346,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
-  jobTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1f2937',
-  },
-  companyInfo: {
-    color: '#6B7280',
-    marginVertical: 4,
-  },
-  rating: {
-    color: '#fbbf24',
-  },
-  rowInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 4,
-  },
-  rowText: {
-    color: '#4B5563',
-    fontSize: 13,
-  },
-  description: {
-    color: '#6B7280',
-    fontSize: 13,
-    marginVertical: 4,
-  },
-  skillsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginTop: 8,
-  },
+  jobTitle: { fontSize: 16, fontWeight: 'bold', color: '#1f2937' },
+  companyInfo: { color: '#6B7280', marginVertical: 4 },
+  rating: { color: '#fbbf24' },
+  rowInfo: { flexDirection: 'row', alignItems: 'center', marginVertical: 4 },
+  rowText: { color: '#4B5563', fontSize: 13 },
+  description: { color: '#6B7280', fontSize: 13, marginVertical: 4 },
+  skillsContainer: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 },
   skillTag: {
     backgroundColor: '#E5E7EB',
     paddingHorizontal: 8,
@@ -415,35 +361,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
     marginBottom: 6,
   },
-  skillText: {
-    fontSize: 12,
-    color: '#374151',
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  logoImage: {
-    width: 48,
-    height: 48,
-    borderRadius: 8,
-    marginLeft: 8,
-  },
-  bottomNav: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: 'white',
-    elevation: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 40,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  navItem: { alignItems: 'center' },
-  navText: { fontSize: 12, color: 'gray' },
-  navTextActive: { fontSize: 12, color: '#7c3aed' },
+  skillText: { fontSize: 12, color: '#374151' },
+  footer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 },
+  logoImage: { width: 48, height: 48, borderRadius: 8, marginLeft: 8 },
 });

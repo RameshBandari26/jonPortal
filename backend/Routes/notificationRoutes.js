@@ -1,8 +1,10 @@
 const express = require('express');
 const router = express.Router();
+const verifyToken = require('../middleware/auth');
 const Notification = require('../models/Notification');
+const io = global.io;
 
-// GET all notifications for a user
+// ✅ GET all notifications for a user
 router.get('/:userId', async (req, res) => {
   try {
     const notifications = await Notification.find({ userId: req.params.userId }).sort({ createdAt: -1 });
@@ -12,26 +14,30 @@ router.get('/:userId', async (req, res) => {
   }
 });
 
-// POST create a new notification
-router.post('/', async (req, res) => {
-  const { userId, type, title, message } = req.body;
+// ✅ POST create a new notification — userId from token
+router.post('/', verifyToken, async (req, res) => {
+  const userId = req.user.id; // ✅ pulled from token
+  const { type, title, message } = req.body;
+
+  if (!type || !title || !message) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
 
   try {
-    const newNotification = new Notification({
-      userId,
-      type,
-      title,
-      message,
-    });
-
+    const newNotification = new Notification({ userId, type, title, message });
     await newNotification.save();
+
+    // ✅ Emit notification to specific user via Socket.IO
+    io.to(userId).emit('new_notification', newNotification);
+
     res.status(201).json(newNotification);
   } catch (err) {
+    console.error('Create notification error:', err);
     res.status(500).json({ error: 'Failed to create notification' });
   }
 });
 
-// PUT mark as read
+// ✅ PUT mark notification as read
 router.put('/:id/read', async (req, res) => {
   try {
     const notification = await Notification.findByIdAndUpdate(
@@ -45,7 +51,7 @@ router.put('/:id/read', async (req, res) => {
   }
 });
 
-// DELETE a notification
+// ✅ DELETE a notification
 router.delete('/:id', async (req, res) => {
   try {
     await Notification.findByIdAndDelete(req.params.id);
