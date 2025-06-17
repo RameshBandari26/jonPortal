@@ -1,52 +1,38 @@
+// ✅ Routes/verifyRoutes.js
 const express = require('express');
 const router = express.Router();
-const nodemailer = require('nodemailer');
 const User = require('../models/User');
-const jwt = require('jsonwebtoken');
+// const verifyToken = require('../Middleware/Auth');
+const verifyToken = require('../middleware/auth');
+const { sendOtpEmail } = require('../utils/resendService'); // ✅ Use Resend
 
-const otpStore = new Map(); // In-memory { key: { otp, expiresAt } }
+const otpStore = new Map(); // email -> { otp, expiresAt }
 
 function generateOtp() {
-  return Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit
+  return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-function sendMail(to, subject, text) {
-  const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: 'yourmail@gmail.com',
-      pass: 'your-app-password', // use app password, not real one
-    },
-  });
-
-  return transporter.sendMail({
-    from: 'yourmail@gmail.com',
-    to,
-    subject,
-    text,
-  });
-}
-
-// Send OTP
+// ✅ Send OTP to email
 router.post('/send-email-otp', async (req, res) => {
   const { email } = req.body;
-
   const otp = generateOtp();
-  const expiresAt = Date.now() + 5 * 60 * 1000; // valid for 5 min
+  const expiresAt = Date.now() + 3 * 60 * 1000;
 
   try {
-    await sendMail(email, 'Your OTP', `Your OTP is ${otp}`);
+    await sendOtpEmail(email, otp);
     otpStore.set(email, { otp, expiresAt });
-    res.json({ success: true, message: 'OTP sent successfully' });
-  } catch (error) {
-    console.error('Mail error:', error);
-    res.status(500).json({ success: false, message: 'Failed to send OTP' });
+    res.json({ success: true, message: 'OTP sent to email' });
+    console.log(`Generated OTP for ${email}: ${otp}`);
+  } catch (err) {
+    console.error('Failed to send OTP:', err);
+    res.status(500).json({ success: false, message: 'Could not send OTP' });
   }
 });
 
-// Verify OTP & update email
-router.post('/verify-email-otp', async (req, res) => {
-  const { email, otp, userId } = req.body;
+// ✅ Verify OTP and update user email
+router.post('/verify-email-otp', verifyToken, async (req, res) => {
+  const { email, otp } = req.body;
+  const userId = req.user.id; // ✅ From token
 
   const record = otpStore.get(email);
   if (!record || record.otp !== otp || Date.now() > record.expiresAt) {
@@ -54,13 +40,14 @@ router.post('/verify-email-otp', async (req, res) => {
   }
 
   try {
-    await User.findByIdAndUpdate(userId, { email });
+    await User.findByIdAndUpdate(userId, {
+      email,
+      emailVerified: true,
+    });
     otpStore.delete(email);
     res.json({ success: true, message: 'Email verified & updated' });
   } catch (error) {
-    console.error('DB error:', error);
-    res.status(500).json({ success: false, message: 'Database update failed' });
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 });
-
 module.exports = router;

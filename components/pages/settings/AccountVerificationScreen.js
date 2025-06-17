@@ -80,7 +80,12 @@ const AccountSettingsScreen = ({ navigation }) => {
             });
           }}>
           {verified ? (
-            <Icon name="check-circle" size={22} color="green" />
+            <View style={styles.verifyWrapper}>
+              
+            <Icon name="edit-2" size={18} color="#666" style={styles.editIcon} />
+            <TouchableOpacity><Icon name="check-circle" size={22} color="green" /></TouchableOpacity>
+            
+            </View>
           ) : (
             <View style={styles.verifyWrapper}>
               <Text style={styles.verifyText}>Verify</Text>
@@ -98,7 +103,7 @@ const AccountSettingsScreen = ({ navigation }) => {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Icon name="arrow-left" size={24} />
         </TouchableOpacity>
-
+        <View style={styles.hr} />
         <Text style={styles.heading}>Account</Text>
 
         {loading ? (
@@ -127,6 +132,12 @@ const styles = StyleSheet.create({
     padding: 20,
     backgroundColor: '#fff',
   },
+  hr: {
+  height: 1,
+  backgroundColor: '#f5f5f5',
+  width: '100%',
+  marginTop: 20,
+},
   heading: {
     fontSize: 24,
     fontWeight: 'bold',
@@ -165,6 +176,12 @@ const styles = StyleSheet.create({
   linkText: {
     color: '#007bff',
     fontWeight: 'bold',
+  },
+  editIcon: {
+    marginRight: 8,
+    paddingRight: 10,
+    color: '#666',
+
   },
   verifyWrapper: {
     flexDirection: 'row',
