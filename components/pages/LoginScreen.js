@@ -151,6 +151,7 @@ import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'reac
 import Icon from 'react-native-vector-icons/FontAwesome';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+
 const BASE_URL = 'http://192.168.30.231:5000/api/auth';
 
 const LoginScreen = () => {
@@ -160,6 +161,8 @@ const LoginScreen = () => {
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [password, setPassword] = useState('');
   const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(false);
+
 
   useEffect(() => {
     if (route.params?.role) {
@@ -167,42 +170,46 @@ const LoginScreen = () => {
     }
   }, [route.params]);
 
-  const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert('Error', 'Please enter both email and password');
-      return;
-    }
+const handleLogin = async () => {
+  if (!email || !password) {
+    Alert.alert('Error', 'Please enter both email and password');
+    return;
+  }
 
-    try {
-      const res = await fetch(`${BASE_URL}/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, role }),
-      });
+  setLoading(true); // ✅ Start loading
 
-      const data = await res.json();
-      console.log('Login response:', data);
+  try {
+    const res = await fetch(`${BASE_URL}/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email.trim(), password, role }),
+    });
 
-      if (res.ok && data.token && data.user?.id) {
-        // Store token and userId
-        await AsyncStorage.setItem('token', data.token);
-        await AsyncStorage.setItem('userId', data.user.id);
+    const data = await res.json();
+    console.log('Login response:', data);
 
-        Alert.alert('Success', 'Login successful');
+    if (res.ok && data.token && data.user?.id) {
+      await AsyncStorage.setItem('token', data.token);
+      await AsyncStorage.setItem('userId', data.user.id);
 
-        if (role === 'employer') {
-          navigation.navigate('RecruiterHomePage');
-        } else {
-          navigation.navigate('Drawer', { screen: 'HomePage', role });
-        }
+      Alert.alert('Success', 'Login successful');
+
+      if (role === 'employer') {
+        navigation.navigate('RecruiterHomePage');
       } else {
-        Alert.alert('Login Failed', data.message || 'Invalid credentials');
+        navigation.navigate('Drawer', { screen: 'HomePage', role });
       }
-    } catch (err) {
-      console.error('Login error:', err);
-      Alert.alert('Error', 'Network error, try again');
+    } else {
+      Alert.alert('Login Failed', data.message || 'Invalid credentials');
     }
-  };
+  } catch (err) {
+    console.error('Login error:', err);
+    Alert.alert('Error', 'Network error, try again');
+  } finally {
+    setLoading(false); // ✅ Stop loading
+  }
+};
+
 
   return (
     <View style={styles.container}>
@@ -235,9 +242,9 @@ const LoginScreen = () => {
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
-        <Text style={styles.loginText}>LOGIN</Text>
-      </TouchableOpacity>
+      <TouchableOpacity style={styles.loginButton} onPress={handleLogin} disabled={loading}>
+  <Text style={styles.loginText}>{loading ? 'Logging in...' : 'LOGIN'}</Text>
+</TouchableOpacity>
 
       <Text style={styles.forgotPassword}>
         Forgot your password? <Text style={styles.reset}>Reset here</Text>

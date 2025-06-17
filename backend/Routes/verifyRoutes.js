@@ -2,9 +2,10 @@
 const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
-// const verifyToken = require('../Middleware/Auth');
 const verifyToken = require('../middleware/auth');
-const { sendOtpEmail } = require('../utils/resendService'); // ✅ Use Resend
+const { sendOtpEmail } = require('../utils/emailService');
+
+
 
 const otpStore = new Map(); // email -> { otp, expiresAt }
 

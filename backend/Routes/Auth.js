@@ -68,12 +68,17 @@ router.post('/login', async (req, res) => {
   console.log("Login attempt");
 
   try {
-    const { email, password } = req.body;
+    const { email, password, role } = req.body; // ✅ Make sure 'role' is included
 
     const user = await User.findOne({ email });
 
     if (!user)
       return res.status(400).json({ message: 'Invalid email or password' });
+
+    // ✅ Check role match
+    if (user.role !== role) {
+      return res.status(403).json({ message: `This account is not registered as a ${role}.` });
+    }
 
     const isMatch = await bcrypt.compare(password, user.password);
 
@@ -92,7 +97,7 @@ router.post('/login', async (req, res) => {
         companyName: user.companyName
       }
     });
-    
+
   } catch (err) {
     console.error('Login error:', err);
     res.status(500).json({ message: 'Server error' });
