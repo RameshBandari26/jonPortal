@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const User = require('../models/User.js'); // Adjust path if needed
 const verifyToken = require('../Middleware/Auth'); 
+const { sendPasswordChangeEmail } = require('../utils/emailService');
 
 // ✅ POST /api/users/userdata — fetch user info securely
 router.post('/userdata', verifyToken, async (req, res) => {
@@ -135,5 +136,45 @@ router.get('/candidates', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch candidates' });
   }
 });
+
+const bcrypt = require('bcrypt');
+
+router.post('/change-password', verifyToken, async (req, res) => {
+  const userId = req.user.id;
+  const { currentPassword, newPassword } = req.body;
+
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ message: 'Both current and new passwords are required' });
+  }
+
+  try {
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) return res.status(401).json({ message: 'Incorrect current password' });
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    user.password = hashedPassword;
+    await user.save();
+
+     // ✅ Send confirmation email
+   try {
+  console.log('Sending email...');
+  await sendPasswordChangeEmail(user.email, user.fullName);
+  console.log('Email sent');
+} catch (emailErr) {
+  console.error('Email sending failed:', emailErr);
+}
+
+    res.json({ message: 'Password updated successfully' });
+  } catch (err) {
+    console.error('Error updating password:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 
 module.exports = router;

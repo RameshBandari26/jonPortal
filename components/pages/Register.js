@@ -216,7 +216,7 @@ export default function RegistrationScreen({ navigation, route }) {
           onClose={() => {
             setAlertVisible(false);
             if (alertType === 'success') {
-              navigation.navigate('Login');
+              navigation.navigate('Login', { role });
             }
           }}
         />

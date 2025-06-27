@@ -81,10 +81,10 @@ const AccountSettingsScreen = ({ navigation }) => {
           }}>
           {verified ? (
             <View style={styles.verifyWrapper}>
-              
-            <Icon name="edit-2" size={18} color="#666" style={styles.editIcon} />
-            <TouchableOpacity><Icon name="check-circle" size={22} color="green" /></TouchableOpacity>
-            
+
+              <Icon name="edit-2" size={18} color="#666" style={styles.editIcon} />
+              <TouchableOpacity><Icon name="check-circle" size={22} color="green" /></TouchableOpacity>
+
             </View>
           ) : (
             <View style={styles.verifyWrapper}>
@@ -113,10 +113,13 @@ const AccountSettingsScreen = ({ navigation }) => {
             {renderField('Email', email, emailVerified, 'email')}
             {renderField('Mobile Number', phone, mobileVerified, 'phone')}
 
-            <TouchableOpacity style={styles.passwordRow}>
+            <TouchableOpacity
+              style={styles.passwordRow}
+              onPress={() => navigation.navigate('ChangePassword')}>
               <Text style={styles.label}>Password</Text>
               <Text style={styles.linkText}>Change password</Text>
             </TouchableOpacity>
+
           </>
         )}
       </View>
@@ -133,11 +136,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   hr: {
-  height: 1,
-  backgroundColor: '#f5f5f5',
-  width: '100%',
-  marginTop: 20,
-},
+    height: 1,
+    backgroundColor: '#f5f5f5',
+    width: '100%',
+    marginTop: 20,
+  },
   heading: {
     fontSize: 24,
     fontWeight: 'bold',

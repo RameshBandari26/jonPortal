@@ -1,4 +1,7 @@
+//models/User.js
+
 const mongoose = require('mongoose');
+const bcrypt = require('bcrypt'); // ✅ Import bcrypt for hashing
 
 const userSchema = new mongoose.Schema({
   fullName: { type: String, required: true },
@@ -59,6 +62,19 @@ const userSchema = new mongoose.Schema({
     languages: [String],
   },
 }, { timestamps: true });
+
+
+// ✅ Add pre-save hook to hash password before saving
+// userSchema.pre('save', async function (next) {
+//   if (!this.isModified('password')) return next(); // Only hash if password is changed
+//   try {
+//     const salt = await bcrypt.genSalt(10); // Generate salt
+//     this.password = await bcrypt.hash(this.password, salt); // Hash the password
+//     next();
+//   } catch (err) {
+//     next(err);
+//   }
+// });
 
 // ✅ Prevent OverwriteModelError
 module.exports = mongoose.models.User || mongoose.model('User', userSchema);

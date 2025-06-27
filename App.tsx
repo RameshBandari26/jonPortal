@@ -26,6 +26,8 @@ import UpdateProfileScreen from './components/pages/UpdateProfileScreen';
 import PostJobs from './components/Recruiter/PostJobs';
 import RecruiterHomePage from './components/Recruiter/RecruiterHomePage';
 import DrawerNavigator from './DrawerNavigator';
+import ChangePasswordScreen from './components/pages/settings/ChangePasswordScreen';
+import ForgotPasswordScreen from './components/pages/settings/ForgotPasswordScreen.js';
 
 const Stack = createNativeStackNavigator();
 
@@ -48,6 +50,10 @@ export default function App() {
         <Stack.Screen name="PostJobs" component={PostJobs} />
         <Stack.Screen name="Search" component={OpportunitySearchScreen} />
         <Stack.Screen name="AccountSettings" component={AccountVerificationScreen} />
+        <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
+        <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+        
+        {/* Settings */}
         <Stack.Screen name="Notifications" component={NotificationScreen} />
 
         {/* Admin */}

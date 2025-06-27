@@ -245,10 +245,11 @@ const handleLogin = async () => {
       <TouchableOpacity style={styles.loginButton} onPress={handleLogin} disabled={loading}>
   <Text style={styles.loginText}>{loading ? 'Logging in...' : 'LOGIN'}</Text>
 </TouchableOpacity>
-
+      <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
       <Text style={styles.forgotPassword}>
         Forgot your password? <Text style={styles.reset}>Reset here</Text>
       </Text>
+      </TouchableOpacity>
 
       <Text style={styles.or}>- - - Or sign in with - - -</Text>
 

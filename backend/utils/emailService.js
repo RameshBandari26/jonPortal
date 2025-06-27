@@ -21,4 +21,22 @@ async function sendOtpEmail(to, otp) {
   await transporter.sendMail(mailOptions);
 }
 
-module.exports = { sendOtpEmail };
+async function sendPasswordChangeEmail(to, name) {
+  const mailOptions = {
+    from: `"Your App " <${process.env.EMAIL_USER}>`,
+    to,
+    subject: 'Password Changed Successfully',
+    html: `
+      <p>Hi ${name || 'User'},</p>
+      <p>Your password was changed successfully. If this wasn't you, please contact support immediately.</p>
+      <p>Thanks,<br/>Your App Team</p>
+    `,
+  };
+
+  await transporter.sendMail(mailOptions);
+}
+
+module.exports = {
+  sendOtpEmail,
+  sendPasswordChangeEmail,
+};
